@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.cjson": "jsonc",
+        "*.wxss": "css",
+        "*.wxs": "javascript",
+        "avutil.h": "c",
+        "swscale.h": "c",
+        "avformat.h": "c",
+        "avcodec.h": "c"
+    }
+}
