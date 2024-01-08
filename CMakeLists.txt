@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.12)
 project(ffmpeg-learn)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-find_package(FFmpeg REQUIRED)
+find_package(FFmpeg REQUIRED AVCODEC AVFORMAT AVUTIL AVDEVICE POSTPROC SWSCALE)
 
 if(FFMPEG_FOUND)
 #  FFMPEG_INCLUDE_DIRS  - Include directory necessary for using the required components headers.

@@ -50,8 +50,21 @@ static void pgm_save(unsigned char *buf, int wrap, int xsize, int ysize,
     fclose(f);
 }
 
+static void ppm_save(unsigned char *buf, int wrap, int xsize, int ysize,
+                     char *filename)
+{
+    FILE *f;
+    int i;
+
+    f = fopen(filename, "wb");
+    fprintf(f, "P6\n%d %d\n%d\n", xsize, ysize, 255);
+    for (i = 0; i < ysize; i++)
+        fwrite(buf + i * wrap, 1, xsize*3, f);
+    fclose(f);
+}
+
 static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt,
-                   const char *filename)
+                    AVFrame *rgbFrame, struct SwsContext *swsCtx)
 {
     char buf[1024];
     int ret;
@@ -79,9 +92,16 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt,
 
         /* the picture is allocated by the decoder. no need to
            free it */
-        snprintf(buf, sizeof(buf), "%s-%" PRId64 ".pgm", filename, dec_ctx->frame_number);
-        pgm_save(frame->data[0], frame->linesize[0],
-                 frame->width, frame->height, buf);
+        // snprintf(buf, sizeof(buf), "%s-%" PRId64 ".pgm", filename, dec_ctx->frame_number);
+        // pgm_save(frame->data[0], frame->linesize[0],
+        //          frame->width, frame->height, buf);
+
+        // 进行颜色空间转换
+        sws_scale(swsCtx, frame->data[0], frame->linesize, 0, frame->height,
+                rgbFrame->data, rgbFrame->linesize);
+        snprintf(buf, sizeof(buf), "%s-%" PRId64 ".ppm", "frame", dec_ctx->frame_number);
+        ppm_save(rgbFrame->data[0], rgbFrame->linesize[0],
+                 rgbFrame->width, rgbFrame->height, buf);
     }
 }
 
@@ -94,6 +114,7 @@ int main(int argc, char *argv[])
     AVCodecContext *pCodecCtx = NULL;
     AVCodec *pCodec = NULL;
     AVFrame *pFrame = NULL;
+    AVFrame *pRGBFrame = NULL;
     AVPacket *packet;
     int frameFinished;
     int numBytes;
@@ -155,6 +176,18 @@ int main(int argc, char *argv[])
     // Allocate video frame
     pFrame = av_frame_alloc();
 
+    // 创建一个新的AVFrame对象
+    pRGBFrame = av_frame_alloc();
+    // 设置新的AVFrame参数
+    pRGBFrame->format = AV_PIX_FMT_RGB32;
+    pRGBFrame->width = pCodecCtx->width;
+    pRGBFrame->height = pCodecCtx->height;
+    // 分配内存
+    ret = av_frame_get_buffer(pRGBFrame, 0);
+    if (ret < 0) {
+        return -1;
+    }
+
     // initialize SWS context for software scaling
     sws_ctx = sws_getContext(pCodecCtx->width,
                              pCodecCtx->height,
@@ -175,18 +208,20 @@ int main(int argc, char *argv[])
         // Is this a packet from the video stream?
         if (packet->stream_index == videoStream)
         {
-            decode(pCodecCtx, pFrame, packet, "out");
+            decode(pCodecCtx, pFrame, packet, pRGBFrame, sws_ctx);
         }
 
         // Free the packet that was allocated by av_read_frame
         av_packet_unref(packet);
     }
-    decode(pCodecCtx, pFrame, NULL, "out");
+    decode(pCodecCtx, pFrame, NULL, pRGBFrame, sws_ctx);
 
     av_packet_free(&packet);
 
     // Free the YUV frame
     av_frame_free(&pFrame);
+
+    av_frame_free(&pRGBFrame);
 
     // Close the codecs
     avcodec_close(pCodecCtx);
