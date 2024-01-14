@@ -33,3 +33,14 @@ SDL2相比之前，很多API都已经改变了
 由于每次decode得到的长度和SDL回调要求的不一样，所以需要把没用完的pcm保存下来。
 
 https://www.ffmpeg.org/doxygen/trunk/decode_audio_8c-example.html
+
+## tutorial04
+
+对代码进行重构，主要引入了2个新线程。
+
+1. decode_thread：解包线程，并且新增了videoq队列，解码后packet放到队列中，同时如果队列满了就先不调用av_read_frame了
+2. decode_vodeo_thread：视频解码线程。从videoq读包，解码后的YUV先放到pictq队列中。它既是vidoq的消费者，又是pictq的生成者
+
+至于每一帧显示多久，目前是靠主线程的**定时器**来实现的，VideoState内部没有延迟。重构后，把formatContext等上下文相关的都封装起来，代码相对清晰。
+
+目前开始，VideoState基本有了播放器雏形。

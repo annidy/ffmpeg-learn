@@ -31,3 +31,6 @@ target_link_libraries(tutorial02 PRIVATE ${SDL2_LIBRARIES} ${FFMPEG_LIBRARIES} l
 
 add_executable(tutorial03 tutorial03.cpp)
 target_link_libraries(tutorial03 PRIVATE ${SDL2_LIBRARIES} ${FFMPEG_LIBRARIES} lzma z)
+
+add_executable(tutorial04 tutorial04.cpp)
+target_link_libraries(tutorial04 PRIVATE ${SDL2_LIBRARIES} ${FFMPEG_LIBRARIES} lzma z)
