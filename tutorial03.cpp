@@ -387,7 +387,6 @@ int main(int argc, char *argv[])
         else
         {
             video_callback(vCodecCtx, NULL, renderer, texture);
-            g_quit = SDL_TRUE;
         }
     }
     

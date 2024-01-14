@@ -145,6 +145,13 @@ struct VideoState
     {
         avformat_close_input(&pFormatCtx);
         avformat_free_context(pFormatCtx);
+
+        avcodec_free_context(&audio_ctx);
+        avcodec_free_context(&video_ctx);
+        for (auto &p : pictq)
+        {
+            av_frame_free(&p);
+        }
     }
 
     void decode_thread()
@@ -191,7 +198,7 @@ struct VideoState
 
     void decode_video_thread()
     {
-        while (!quit)
+        for(;;)
         {
             auto packet = videoq.Get();
             if (!packet)
@@ -205,6 +212,7 @@ struct VideoState
 
             av_packet_free(&packet);
         }
+        quit = true;
     }
 
     int decode_audio(uint8_t *audio_buf, int buf_size)
@@ -212,10 +220,9 @@ struct VideoState
         AVPacket *pkt;
         int data_size = 0;
 
-        if ((pkt = audioq.Get()) == nullptr)
-        {
-            return -1;
-        }
+        if ((pkt = audioq.Get(false)) == nullptr)
+            return -1;  // 声音不能block，否则SDL的音频会停止工作
+        
         decode(audio_ctx, pkt, [&](AVFrame *frame)
                {
                 auto sample_size = av_get_bytes_per_sample(audio_ctx->sample_fmt);
@@ -495,11 +502,6 @@ int main(int argc, char *argv[])
                 AVFrame *frame = nullptr;
                 if (is->pop_video_frame(&frame) != 0) 
                 {
-                    if (is->videoq.eof)
-                    {
-                        is->quit = true;
-                        break;
-                    }
                     schedule_refresh(is.get(), 100);
                     break;
                 }
