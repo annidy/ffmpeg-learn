@@ -39,31 +39,29 @@ struct PacketQueue
     std::list<AVPacket *> plist;
     int nb_packets = 0;
     int size = 0;
-    SDL_mutex *mutex;
-    SDL_cond *cond;
+    std::mutex mutex;
+    std::condition_variable cond;
     bool eof = false;
 
     PacketQueue()
     {
-        mutex = SDL_CreateMutex();
-        cond = SDL_CreateCond();
+
     }
 
-    int Put(AVPacket *pkt)
+    int Put(const AVPacket *pkt)
     {
-        SDL_LockMutex(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
         plist.push_back(av_packet_clone(pkt));
         nb_packets++;
         size += pkt->size;
-        SDL_CondSignal(cond);
-        SDL_UnlockMutex(mutex);
+        cond.notify_one();
         return 0;
     }
 
     AVPacket *Get(bool block = true)
     {
         AVPacket *ret = nullptr;
-        SDL_LockMutex(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
         for(;;)
         {
             if (!plist.empty())
@@ -78,10 +76,8 @@ struct PacketQueue
             {
                 break;
             }
-            SDL_CondWait(cond, mutex);
+            cond.wait(lock, [&]() { return !plist.empty() || eof; });
         }
-
-        SDL_UnlockMutex(mutex);
         return ret;
     }
 };
