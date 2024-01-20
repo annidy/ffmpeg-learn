@@ -88,3 +88,26 @@ timer():
 上面的代码有一些小技巧在里面
 1. 每一帧的delay不是`P - 音频PTS`，而是先`P - P'`，然后再看与音频的diff，加快或减慢，如果超过10秒，ffplay就不管音频了，摆烂只使用视频的pts
 2. frame_timer记录实际视频显示的*绝对时间*。为了规避定时器误差，特地把初始值设为系统时间，在设置定时器时再减去当前系统时间，这样就很准确了
+
+## tutorial06
+
+本节把节的时钟改为可配置为外部系统时钟。考虑到这不是主流实现方案，就不实现了
+
+## tutorial07
+
+FFmpeg的seek非常简单，api调用主要就2个
+```c++
+auto seek_target = av_rescale_q(pos, AV_TIME_BASE_Q,
+                            pFormatCtx->streams[stream_index]->time_base);
+if (av_seek_frame(pFormatCtx, stream_index, seek_target, seek_flags) < 0)
+{
+    std::cerr << "seek error\n";
+}
+```
+`AV_TIME_BASE_Q`是单位为秒的分数，它主要是把pos转换为stream_index对应的时间单位。
+最后调用`av_seek_frame`方法即可，stream_index可以是任意一个，另一个seek_flags是标记向前或向后seek
+
+seek的另一个必要步骤是清空播放器的缓冲和解码器缓冲。包缓冲直接清空链表，而清空解码器是在包里放入一个特殊的pkt，当解码线程读到这个特殊的包时，就调用`avcodec_flush_buffers`刷新缓冲。
+
+> FFmpeg里，flush操作是evacuate意思
+
